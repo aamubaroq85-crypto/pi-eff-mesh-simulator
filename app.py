@@ -4,18 +4,13 @@ import streamlit as st
 
 # Konfigurasi Halaman Streamlit
 st.set_page_config(
-    page_title="Pi_eff Space-Air-Ground Mesh & Air Interface Simulator",
-    layout="wide",
+    page_title="Pi_eff Mesh & Local Wireless Simulator", layout="wide"
 )
 
 
 class ZuhriMeshBridgeSimulator:
 
   def __init__(self, base_pi=3.14159, structural_potential=0.025):
-    """Inisialisasi Konstanta Zuhri (pi_eff) yang disempurnakan dengan
-
-    koreksi redaman dielektrik dan impedansi ruang.
-    """
     self.base_pi = base_pi
     self.structural_potential = structural_potential
     self.pi_eff = self.calculate_effective_pi(0.001, 1.5e12, 0.0)
@@ -24,10 +19,6 @@ class ZuhriMeshBridgeSimulator:
   def calculate_effective_pi(
       self, contour_integral_value, wavelength_thz, weather_attenuation=0.0
   ):
-    """Formula pi_eff yang diperbaiki:
-
-    Memasukkan faktor koreksi kontur torsi dan redaman cuaca ekstrem.
-    """
     correction_factor = (contour_integral_value / wavelength_thz) - (
         weather_attenuation * 0.05
     )
@@ -39,7 +30,6 @@ class ZuhriMeshBridgeSimulator:
   def compute_sag_eigen_mapping(
       self, x, y, z, t, omega_list, coefficients, weather_attenuation=0.0
   ):
-    """Pemetaan fungsi eigen lintas matra dengan kompensasi redaman cuaca."""
     field_value = 0.0
     attenuation_factor = np.exp(-weather_attenuation * z / 1000.0)
     for n, (omega, c_n) in enumerate(zip(omega_list, coefficients), start=1):
@@ -53,7 +43,6 @@ class ZuhriMeshBridgeSimulator:
     return field_value
 
   def apply_phase_compensation(self, frequency, distance):
-    """Menghitung fungsi transfer kompensasi fasa H(omega)."""
     omega = 2 * np.pi * frequency
     transfer_function = np.exp(1j * (omega / self.c) * self.pi_eff * distance)
     return transfer_function
@@ -81,35 +70,33 @@ class DeterministicLatticeAirInterface:
 
 # --- Antarmuka Pengguna Streamlit ---
 st.title(
-    "🌐 $\pi_{\text{eff}}$ Space-Air-Ground Mesh Bridge & Air Interface Simulator"
+    "🌐 Simulator Jaringan Mandiri & $\pi_{\text{eff}}$ Space-Air-Ground Bridge"
 )
 st.markdown(
-    "Platform simulasi tingkat lanjut dengan **Preset Cuaca**, **Diagram"
-    " Arsitektur**, dan **Grafik Komparasi Latensi Real-Time** berbasis kerangka"
-    " kerja **Konstanta Zuhri ($\pi_{\text{eff}}$)**."
+    "Platform simulasi perangkat lunak untuk merancang **Jaringan Mesh Lokal"
+    " Tanpa Kuota Seluler** berbasis kerangka kerja **Konstanta Zuhri"
+    " ($\pi_{\text{eff}}$)**."
 )
 
 # Panel Kontrol Sidebar
-st.sidebar.header("🎛️ Panel Kontrol Parameter")
+st.sidebar.header("🎛️ Parameter Fisika & Gelombang")
 structural_potential = st.sidebar.slider(
     "Potensi Struktural Kisi ($\Delta \pi$)", 0.001, 0.050, 0.025, 0.001
 )
 freq_thz = (
-    st.sidebar.slider("Frekuensi Terahertz (THz)", 0.5, 3.5, 1.5, 0.1) * 1e12
+    st.sidebar.slider("Frekuensi Pembawa (THz / GHz)", 0.5, 3.5, 1.5, 0.1) * 1e12
 )
-distance_km = st.sidebar.slider("Jarak Lintasan Mesh (km)", 1.0, 50.0, 15.0, 1.0)
+distance_km = st.sidebar.slider("Jarak Jangkauan Antar-Node (km)", 1.0, 50.0, 15.0, 1.0)
 
 st.sidebar.markdown("---")
-st.sidebar.header("🌧️ Modul Cuaca & Preset Cepat")
-
-# Fitur 2: Preset Skenario Pengujian Cuaca
+st.sidebar.header("🌧️ Modul Cuaca & Lingkungan")
 preset_option = st.sidebar.selectbox(
     "Pilih Skenario Preset:",
     [
         "Kustom (Manual)",
         "☀️ Cerah Normal (Att: 0.0)",
         "🌧️ Badai Hujan Tropis (Att: 0.5)",
-        "🌪️ Turbulensi Stratosfer Ekstrem (Att: 1.0)",
+        "🌪️ Turbulensi Ekstrem (Att: 1.0)",
     ],
 )
 
@@ -117,17 +104,13 @@ if preset_option == "☀️ Cerah Normal (Att: 0.0)":
   default_att = 0.0
 elif preset_option == "🌧️ Badai Hujan Tropis (Att: 0.5)":
   default_att = 0.5
-elif preset_option == "🌪️ Turbulensi Stratosfer Ekstrem (Att: 1.0)":
+elif preset_option == "🌪️ Turbulensi Ekstrem (Att: 1.0)":
   default_att = 1.0
 else:
   default_att = 0.0
 
 weather_attenuation = st.sidebar.slider(
-    "Indeks Redaman Hujan / Turbulensi",
-    0.0,
-    1.0,
-    float(default_att),
-    0.05,
+    "Indeks Redaman Lingkungan", 0.0, 1.0, float(default_att), 0.05
 )
 
 # Inisialisasi Objek Simulator
@@ -139,142 +122,148 @@ current_pi_eff = bridge_sim.calculate_effective_pi(
 )
 air_interface = DeterministicLatticeAirInterface(current_pi_eff)
 
-# Fitur 3: Visualisasi Diagram Arsitektur Interaktif
-st.subheader("🗺️ Skema Arsitektur Lintas Matra (Space-Air-Ground)")
-col_arch1, col_arch2, col_arch3 = st.columns(3)
-col_arch1.info(
-    "🛰️ **Space Segment**\n\nSatelit LEO (Backbone Orbital Polar)"
-)
-col_arch2.warning(
-    "✈️ **Air Segment**\n\nWahana Udara / HAP / Drone Relay Lokal"
-)
-col_arch3.success(
-    "🏢 **Ground Segment**\n\nTerminal Terestrial & Pengguna Akhir"
-)
-st.markdown(
-    "_Keterangan Alur: Sinyal Terahertz dipetakan secara linier tanpa"
-    " dekapsulasi paket melalui jembatan mesh lintas matra._"
-)
-st.markdown("---")
+# --- Menu Navigasi / Tab Simulasi Perangkat Lunak ---
+tab1, tab2, tab3 = st.tabs([
+    "📊 Metrik & Komparasi Latensi",
+    "📡 Simulasi Transmisi Paket Tanpa Kuota",
+    "🗺️ Arsitektur Jaringan Mesh Lokal",
+])
 
-# Metrik Kinerja Utama & Kalkulator Latensi Waktu Nyata
-st.subheader("📊 Metrik Kinerja & Kalkulator Latensi Waktu Nyata")
-col1, col2, col3, col4 = st.columns(4)
+with tab1:
+  st.subheader("📊 Metrik Kinerja Jaringan & Kalkulator Waktu Nyata")
+  col1, col2, col3, col4 = st.columns(4)
 
-col1.metric(
-    label="Konstanta Efektif ($\pi_{\text{eff}}$)",
-    value=f"{current_pi_eff:.6f}",
-)
+  col1.metric(
+      label="Konstanta Efektif ($\pi_{\text{eff}}$)",
+      value=f"{current_pi_eff:.6f}",
+  )
 
-conv_latency_ms = distance_km * 3.33 + (weather_attenuation * 25.0)
-mesh_latency_ms = 0.0000
+  conv_latency_ms = distance_km * 3.33 + (weather_attenuation * 25.0)
+  mesh_latency_ms = 0.0000
 
-col2.metric(
-    label="Latensi Konvensional",
-    value=f"{conv_latency_ms:.2f} ms",
-    delta="Tinggi / Berfluktuasi",
-    delta_color="inverse",
-)
-col3.metric(
-    label="Latensi $\pi_{\text{eff}}$ Mesh",
-    value=f"{mesh_latency_ms:.4f} ms",
-    delta="Zero-Loss Mutlak",
-)
+  col2.metric(
+      label="Jaringan Seluler Konvensional",
+      value=f"{conv_latency_ms:.2f} ms",
+      delta="Butuh Kuota / Fluktuatif",
+      delta_color="inverse",
+  )
+  col3.metric(
+      label="$\pi_{\text{eff}}$ Mesh Mandiri",
+      value=f"{mesh_latency_ms:.4f} ms",
+      delta="Zero-Loss / Gratis",
+  )
 
-h_comp = bridge_sim.apply_phase_compensation(freq_thz, distance_km * 1000.0)
-col4.metric(
-    label="Amplitudo Kompensasi Fasa", value=f"{np.abs(h_comp):.4f}"
-)
+  h_comp = bridge_sim.apply_phase_compensation(freq_thz, distance_km * 1000.0)
+  col4.metric(
+      label="Amplitudo Kompensasi Fasa", value=f"{np.abs(h_comp):.4f}"
+  )
 
-# Fitur 1: Grafik Komparasi Latensi Real-Time (Diagram Batang)
-st.markdown("##### 📈 Grafik Komparasi Latensi Langsung")
-latency_comparison_df = pd.DataFrame({
-    "Tipe Jaringan": ["Konvensional (Terdampak Cuaca)", "$\pi_{\text{eff}}$ Mesh"],
-    "Latensi (ms)": [conv_latency_ms, mesh_latency_ms],
-})
-st.bar_chart(latency_comparison_df, x="Tipe Jaringan", y="Latensi (ms)")
+  st.markdown("##### 📈 Grafik Komparasi Latensi Langsung")
+  latency_comparison_df = pd.DataFrame({
+      "Tipe Jaringan": [
+          "Seluler Konvensional (Berbayar/Kuota)",
+          "Mesh Mandiri ($\pi_{\text{eff}}$)",
+      ],
+      "Latensi (ms)": [conv_latency_ms, mesh_latency_ms],
+  })
+  st.bar_chart(latency_comparison_df, x="Tipe Jaringan", y="Latensi (ms)")
 
-st.markdown("---")
+with tab2:
+  st.subheader(
+      "📡 Modul Simulasi Transmisi Paket Data Lokal (Tanpa Kuota Seluler)"
+  )
+  st.markdown(
+      "Simulasi pengiriman paket data teks/multimedia antar perangkat dalam"
+      " jaringan lokal berbasis koreksi fasa deterministik."
+  )
 
-# Visualisasi Bagian 1: Deterministic Lattice Air Interface
-st.subheader(
-    "1. Deterministic Lattice Air Interface: Stabilitas di Bawah Cuaca Ekstrem"
-)
-time_steps = 200
-t_axis, clean_signal, jitter_signal = air_interface.simulate_lattice_sync(
-    time_steps, weather_attenuation
-)
+  # Parameter Simulasi Paket
+  packet_size_kb = st.slider(
+      "Ukuran Paket Data (KB)", 10, 1024, 256, 16
+  )
+  transmission_power_dbm = st.slider(
+      "Daya Pancar Radio Lokal (dBm)", 10, 30, 20, 1
+  )
 
-chart_data = {
-    "Waktu (ms)": t_axis * 1000,
-    "Konvensional (Terdampak Cuaca)": jitter_signal,
-    "Deterministic Lattice ($\pi_{\text{eff}}$)": clean_signal,
-}
-st.line_chart(
-    chart_data,
-    x="Waktu (ms)",
-    y=[
-        "Konvensional (Terdampak Cuaca)",
-        "Deterministic Lattice ($\pi_{\text{eff}}$)",
-    ],
-)
+  # Perhitungan teoretis throughput dan packet loss lokal
+  free_space_loss = 20 * np.log10(distance_km * 1000) + 20 * np.log10(
+      freq_thz / 1e9
+  ) + 92.45
+  effective_signal_strength = (
+      transmission_power_dbm - free_space_loss - (weather_attenuation * 15)
+  )
+  packet_success_rate = max(
+      0.0,
+      min(
+          100.0,
+          100.0
+          - (weather_attenuation * 10)
+          + (np.abs(current_pi_eff - 3.14159) * 5),
+      ),
+  )
 
-# Visualisasi Bagian 2: Space-Air-Ground Mesh Bridge (Eigen Mapping)
-st.subheader(
-    "2. Space-Air-Ground Mesh Bridge: Distribusi Medan Gelombang Eigen"
-)
-spatial_z = st.slider("Ketinggian Transisi Stratosfer / Z (m)", 10, 500, 100)
+  col_p1, col_p2, col_p3 = st.columns(3)
+  col_p1.metric(
+      label="Kekuatan Sinyal Terima (RSSI)",
+      value=f"{effective_signal_strength:.2f} dBm",
+  )
+  col_p2.metric(
+      label="Tingkat Keberhasilan Paket",
+      value=f"{packet_success_rate:.2f}%",
+      delta="Stabil",
+  )
+  col_p3.metric(
+      label="Estimasi Throughput Lokal",
+      value=f"{100 / (1 + weather_attenuation):.1f} Mbps",
+  )
 
-x_coords = np.linspace(0, 20, 100)
-sample_omegas = [1.0e12, 2.0e12, 3.0e12]
-sample_coeffs = [0.8, 0.15, 0.05]
+  # Visualisasi Gelombang Sinkronisasi
+  time_steps = 200
+  t_axis, clean_signal, jitter_signal = air_interface.simulate_lattice_sync(
+      time_steps, weather_attenuation
+  )
+  chart_data = {
+      "Waktu (ms)": t_axis * 1000,
+      "Derau / Interferensi Lingkungan": jitter_signal,
+      "Sinyal Mesh Deterministik ($\pi_{\text{eff}}$)": clean_signal,
+  }
+  st.line_chart(
+      chart_data,
+      x="Waktu (ms)",
+      y=[
+          "Derau / Interferensi Lingkungan",
+          "Sinyal Mesh Deterministik ($\pi_{\text{eff}}$)",
+      ],
+  )
 
-field_values = [
-    np.real(
-        bridge_sim.compute_sag_eigen_mapping(
-            x=x,
-            y=5.0,
-            z=spatial_z,
-            t=0.001,
-            omega_list=sample_omegas,
-            coefficients=sample_coeffs,
-            weather_attenuation=weather_attenuation,
-        )
-    )
-    for x in x_coords
-]
+with tab3:
+  st.subheader("🗺️ Skema Arsitektur Jaringan Mesh Komunitas Lokal")
+  col_arch1, col_arch2, col_arch3 = st.columns(3)
+  col_arch1.info(
+      "🛰️ **Node Backbone / Satelit**\n\nTitik kumpul sinyal langit / HAP"
+      " komunal."
+  )
+  col_arch2.warning(
+      "✈️ **Node Relay Udara/Menara**\n\nPenguat sinyal atap rumah / tiang"
+      " desa."
+  )
+  col_arch3.success(
+      "📱 **Node Pengguna Akhir**\n\nHP / Laptop warga terhubung tanpa kuota."
+  )
 
-sag_chart_data = {
-    "Koordinat Spasial X (m)": x_coords,
-    "Amplitudo Medan M_SAG": field_values,
-}
-st.line_chart(
-    sag_chart_data, x="Koordinat Spasial X (m)", y="Amplitudo Medan M_SAG"
-)
-
-st.markdown("---")
-
-# Fitur Tombol Ekspor Data Simulasi
-st.subheader("📥 Ekspor Data Hasil Simulasi")
-st.markdown(
-    "Unduh hasil perhitungan parameter dan matriks gelombang dalam format CSV"
-    " untuk analisis lebih lanjut."
-)
-
-export_df = pd.DataFrame({
-    "Koordinat_X_m": x_coords,
-    "Amplitudo_Medan_MSAG": field_values,
-    "Pi_Eff_Value": current_pi_eff,
-    "Weather_Attenuation_Index": weather_attenuation,
-    "Conv_Latency_ms": conv_latency_ms,
-    "Mesh_Latency_ms": mesh_latency_ms,
-})
-
-csv_data = export_df.to_csv(index=False).encode("utf-8")
-
-st.download_button(
-    label="📥 Unduh Data Simulasi (.CSV)",
-    data=csv_data,
-    file_name="pi_eff_mesh_simulation_data.csv",
-    mime="text/csv",
-)
+  st.markdown("---")
+  st.subheader("📥 Ekspor Log Simulasi Perangkat Lunak")
+  export_df = pd.DataFrame({
+      "Jarak_km": [distance_km],
+      "Frekuensi_THz": [freq_thz / 1e12],
+      "Pi_Eff": [current_pi_eff],
+      "RSSI_dBm": [effective_signal_strength],
+      "Success_Rate_Percent": [packet_success_rate],
+  })
+  csv_data = export_df.to_csv(index=False).encode("utf-8")
+  st.download_button(
+      label="📥 Unduh Log Simulasi Jaringan (.CSV)",
+      data=csv_data,
+      file_name="local_mesh_simulation_log.csv",
+      mime="text/csv",
+  )
