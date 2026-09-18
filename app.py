@@ -18,9 +18,7 @@ class ZuhriMeshBridgeSimulator:
     """
     self.base_pi = base_pi
     self.structural_potential = structural_potential
-    self.pi_eff = self.calculate_effective_pi(
-        0.001, 1.5e12
-    )  # Inisialisasi awal
+    self.pi_eff = self.calculate_effective_pi(0.001, 1.5e12, 0.0)
     self.c = 3.0e8  # Kecepatan cahaya (m/s)
 
   def calculate_effective_pi(
@@ -41,10 +39,7 @@ class ZuhriMeshBridgeSimulator:
   def compute_sag_eigen_mapping(
       self, x, y, z, t, omega_list, coefficients, weather_attenuation=0.0
   ):
-    """Pemetaan fungsi eigen lintas matra (Satelit LEO - Udara - Terestrial)
-
-    dengan kompensasi redaman cuaca ekstrem secara otomatis.
-    """
+    """Pemetaan fungsi eigen lintas matra dengan kompensasi redaman cuaca."""
     field_value = 0.0
     attenuation_factor = np.exp(-weather_attenuation * z / 1000.0)
     for n, (omega, c_n) in enumerate(zip(omega_list, coefficients), start=1):
@@ -65,10 +60,6 @@ class ZuhriMeshBridgeSimulator:
 
 
 class DeterministicLatticeAirInterface:
-  """Modul Logika Simulasi Deterministic Lattice Air Interface
-
-  untuk sinkronisasi paket dan eliminasi jitter jaringan udara.
-  """
 
   def __init__(self, pi_eff):
     self.pi_eff = pi_eff
@@ -77,7 +68,6 @@ class DeterministicLatticeAirInterface:
     t = np.linspace(0, 1e-3, time_steps)
     ideal_signal = np.sin(2 * np.pi * 1.5e6 * t / self.pi_eff)
 
-    # Jaringan konvensional dipengaruhi cuaca ekstrem & jitter acak
     np.random.seed(42)
     jitter_factor = 0.002 + (weather_attenuation * 0.01)
     jittered_signal = (
@@ -85,10 +75,7 @@ class DeterministicLatticeAirInterface:
         + jitter_factor * np.random.normal(0, 0.5, time_steps)
         - (weather_attenuation * 0.1)
     )
-
-    # Deterministic Lattice tetap stabil berkat Geometric Entropic RIS & pi_eff
     deterministic_signal = ideal_signal
-
     return t, deterministic_signal, jittered_signal
 
 
@@ -97,9 +84,9 @@ st.title(
     "🌐 $\pi_{\text{eff}}$ Space-Air-Ground Mesh Bridge & Air Interface Simulator"
 )
 st.markdown(
-    "Platform simulasi tingkat lanjut dengan **Kalkulator Latensi Waktu Nyata**"
-    " dan **Modul Simulasi Cuaca Ekstrem** berbasis kerangka kerja **Konstanta"
-    " Zuhri ($\pi_{\text{eff}}$)**."
+    "Platform simulasi tingkat lanjut dengan **Preset Cuaca**, **Diagram"
+    " Arsitektur**, dan **Grafik Komparasi Latensi Real-Time** berbasis kerangka"
+    " kerja **Konstanta Zuhri ($\pi_{\text{eff}}$)**."
 )
 
 # Panel Kontrol Sidebar
@@ -113,12 +100,37 @@ freq_thz = (
 distance_km = st.sidebar.slider("Jarak Lintasan Mesh (km)", 1.0, 50.0, 15.0, 1.0)
 
 st.sidebar.markdown("---")
-st.sidebar.header("🌧️ Modul Cuaca Ekstrem")
-weather_attenuation = st.sidebar.slider(
-    "Indeks Redaman Hujan / Turbulensi", 0.0, 1.0, 0.0, 0.05
+st.sidebar.header("🌧️ Modul Cuaca & Preset Cepat")
+
+# Fitur 2: Preset Skenario Pengujian Cuaca
+preset_option = st.sidebar.selectbox(
+    "Pilih Skenario Preset:",
+    [
+        "Kustom (Manual)",
+        "☀️ Cerah Normal (Att: 0.0)",
+        "🌧️ Badai Hujan Tropis (Att: 0.5)",
+        "🌪️ Turbulensi Stratosfer Ekstrem (Att: 1.0)",
+    ],
 )
 
-# Inisialisasi Objek Simulator dengan pi_eff yang disempurnakan
+if preset_option == "☀️ Cerah Normal (Att: 0.0)":
+  default_att = 0.0
+elif preset_option == "🌧️ Badai Hujan Tropis (Att: 0.5)":
+  default_att = 0.5
+elif preset_option == "🌪️ Turbulensi Stratosfer Ekstrem (Att: 1.0)":
+  default_att = 1.0
+else:
+  default_att = 0.0
+
+weather_attenuation = st.sidebar.slider(
+    "Indeks Redaman Hujan / Turbulensi",
+    0.0,
+    1.0,
+    float(default_att),
+    0.05,
+)
+
+# Inisialisasi Objek Simulator
 bridge_sim = ZuhriMeshBridgeSimulator(
     structural_potential=structural_potential
 )
@@ -126,6 +138,24 @@ current_pi_eff = bridge_sim.calculate_effective_pi(
     0.002, freq_thz, weather_attenuation
 )
 air_interface = DeterministicLatticeAirInterface(current_pi_eff)
+
+# Fitur 3: Visualisasi Diagram Arsitektur Interaktif
+st.subheader("🗺️ Skema Arsitektur Lintas Matra (Space-Air-Ground)")
+col_arch1, col_arch2, col_arch3 = st.columns(3)
+col_arch1.info(
+    "🛰️ **Space Segment**\n\nSatelit LEO (Backbone Orbital Polar)"
+)
+col_arch2.warning(
+    "✈️ **Air Segment**\n\nWahana Udara / HAP / Drone Relay Lokal"
+)
+col_arch3.success(
+    "🏢 **Ground Segment**\n\nTerminal Terestrial & Pengguna Akhir"
+)
+st.markdown(
+    "_Keterangan Alur: Sinyal Terahertz dipetakan secara linier tanpa"
+    " dekapsulasi paket melalui jembatan mesh lintas matra._"
+)
+st.markdown("---")
 
 # Metrik Kinerja Utama & Kalkulator Latensi Waktu Nyata
 st.subheader("📊 Metrik Kinerja & Kalkulator Latensi Waktu Nyata")
@@ -136,11 +166,8 @@ col1.metric(
     value=f"{current_pi_eff:.6f}",
 )
 
-# Perhitungan Latensi Real-Time
-conv_latency_ms = (
-    distance_km * 3.33 + (weather_attenuation * 15.0)
-)  # Latensi konvensional + dampak cuaca
-mesh_latency_ms = 0.0000  # Zero-loss deterministic lattice
+conv_latency_ms = distance_km * 3.33 + (weather_attenuation * 25.0)
+mesh_latency_ms = 0.0000
 
 col2.metric(
     label="Latensi Konvensional",
@@ -158,6 +185,14 @@ h_comp = bridge_sim.apply_phase_compensation(freq_thz, distance_km * 1000.0)
 col4.metric(
     label="Amplitudo Kompensasi Fasa", value=f"{np.abs(h_comp):.4f}"
 )
+
+# Fitur 1: Grafik Komparasi Latensi Real-Time (Diagram Batang)
+st.markdown("##### 📈 Grafik Komparasi Latensi Langsung")
+latency_comparison_df = pd.DataFrame({
+    "Tipe Jaringan": ["Konvensional (Terdampak Cuaca)", "$\pi_{\text{eff}}$ Mesh"],
+    "Latensi (ms)": [conv_latency_ms, mesh_latency_ms],
+})
+st.bar_chart(latency_comparison_df, x="Tipe Jaringan", y="Latensi (ms)")
 
 st.markdown("---")
 
@@ -231,6 +266,8 @@ export_df = pd.DataFrame({
     "Amplitudo_Medan_MSAG": field_values,
     "Pi_Eff_Value": current_pi_eff,
     "Weather_Attenuation_Index": weather_attenuation,
+    "Conv_Latency_ms": conv_latency_ms,
+    "Mesh_Latency_ms": mesh_latency_ms,
 })
 
 csv_data = export_df.to_csv(index=False).encode("utf-8")
